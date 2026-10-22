@@ -1,0 +1,6 @@
+{
+  "name": "Devil Cleanerz & Enterprises Admin Panel",
+  "description": "Executive Admin Console for Devil Cleanerz & Enterprises professional cleaning services, packages, products, services, and before-and-after results gallery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
