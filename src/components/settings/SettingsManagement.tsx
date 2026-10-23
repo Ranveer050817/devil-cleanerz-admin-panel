@@ -385,7 +385,7 @@ export const SettingsManagement: React.FC<SettingsManagementProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-[#171717] mb-1">
-                VITE_SUPABASE_PUBLISHABLE_KEY (Anon Key)
+                VITE_SUPABASE_ANON_KEY (Anon Public Key)
               </label>
               <input
                 type="password"

@@ -2,55 +2,122 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CleaningPackage, CleaningProduct, CleaningService, ResultItem } from '../types';
 
 // Retrieve credentials from environment variables (safe for Vite client and Node.js testing)
+// Supports both VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY / VITE_SUPABASE_PUBLISHABLE_KEY
 const envUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 
   (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) || '';
 
-const envKey = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env?.VITE_SUPABASE_ANON_KEY)) || 
-  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_PUBLISHABLE_KEY || process.env?.VITE_SUPABASE_ANON_KEY)) || '';
+const rawPubKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY) || 
+  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_PUBLISHABLE_KEY) || '';
 
-// Local session storage override for convenience if env variables are added in UI
-const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('devil_supabase_url') || '' : '';
-const storedKey = typeof window !== 'undefined' ? localStorage.getItem('devil_supabase_key') || '' : '';
+const rawAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 
+  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) || '';
 
-export const supabaseUrl = envUrl || storedUrl;
-export const supabasePublishableKey = envKey || storedKey;
+// Clean up any stale localStorage overrides so they can never hijack or conflict with environment variables
+if (typeof window !== 'undefined') {
+  try {
+    if (localStorage.getItem('devil_supabase_url') || localStorage.getItem('devil_supabase_key')) {
+      localStorage.removeItem('devil_supabase_url');
+      localStorage.removeItem('devil_supabase_key');
+    }
+  } catch {
+    // Ignore in non-browser environments
+  }
+}
+
+// Select best primary key: prefer verified publishable key if provided, otherwise anon key
+const primaryKey = (rawPubKey && !rawPubKey.includes('your-supabase') && !rawPubKey.includes('placeholder'))
+  ? rawPubKey.trim()
+  : (rawAnonKey && !rawAnonKey.includes('your-supabase') && !rawAnonKey.includes('placeholder'))
+  ? rawAnonKey.trim()
+  : '';
+
+let secondaryKey = (primaryKey === rawPubKey.trim())
+  ? (rawAnonKey && !rawAnonKey.includes('placeholder') ? rawAnonKey.trim() : '')
+  : (rawPubKey && !rawPubKey.includes('placeholder') ? rawPubKey.trim() : '');
+
+// Environment variables are strictly authoritative
+export const supabaseUrl = envUrl.trim();
+export const supabaseAnonKey = primaryKey;
+// Backward compatibility alias
+export const supabasePublishableKey = primaryKey;
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
-  supabasePublishableKey && 
+  supabaseAnonKey && 
   supabaseUrl.startsWith('http') && 
-  !supabaseUrl.includes('your-project')
+  !supabaseUrl.includes('your-project') &&
+  !supabaseUrl.includes('placeholder')
 );
 
 // Fallback dummy for development when keys are not yet provided
 const fallbackUrl = 'https://placeholder.supabase.co';
 const fallbackKey = 'placeholder-key';
 
+let activeKey = isSupabaseConfigured ? supabaseAnonKey : fallbackKey;
+
+// Resilient fetch wrapper: seamlessly retries with secondary key if PostgREST reports 'Invalid API key'
+const resilientFetch = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
+  const res = await fetch(input, init);
+  
+  if (res.status === 401 && secondaryKey && secondaryKey !== activeKey) {
+    const clone = res.clone();
+    try {
+      const body = await clone.json();
+      if (body?.message?.toLowerCase().includes('invalid api key')) {
+        console.warn('[Supabase] Active key rejected ("Invalid API key"). Automatically retrying with alternate key...');
+        activeKey = secondaryKey;
+        const retryHeaders = new Headers(init.headers || {});
+        retryHeaders.set('apikey', secondaryKey);
+        const auth = retryHeaders.get('Authorization');
+        if (auth && (auth.includes('Bearer sb_') || auth.includes('Bearer eyJ'))) {
+          retryHeaders.set('Authorization', `Bearer ${secondaryKey}`);
+        }
+        return await fetch(input, { ...init, headers: retryHeaders });
+      }
+    } catch {
+      // Ignore JSON parse errors and return original response
+    }
+  }
+  
+  return res;
+};
+
 export const supabase: SupabaseClient = createClient(
   isSupabaseConfigured ? supabaseUrl : fallbackUrl,
-  isSupabaseConfigured ? supabasePublishableKey : fallbackKey,
+  activeKey,
   {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true
+    },
+    global: {
+      fetch: resilientFetch
     }
   }
 );
 
-// Save credentials from UI
+// Runtime credentials helper (safe fallback when env vars are missing)
 export const setRuntimeSupabaseCredentials = (url: string, key: string) => {
   if (url && key) {
-    localStorage.setItem('devil_supabase_url', url.trim());
-    localStorage.setItem('devil_supabase_key', key.trim());
+    try {
+      localStorage.setItem('devil_supabase_url', url.trim());
+      localStorage.setItem('devil_supabase_key', key.trim());
+    } catch {
+      // Ignore
+    }
     window.location.reload();
   }
 };
 
 // Clear runtime credentials
 export const clearRuntimeSupabaseCredentials = () => {
-  localStorage.removeItem('devil_supabase_url');
-  localStorage.removeItem('devil_supabase_key');
+  try {
+    localStorage.removeItem('devil_supabase_url');
+    localStorage.removeItem('devil_supabase_key');
+  } catch {
+    // Ignore
+  }
   window.location.reload();
 };
 

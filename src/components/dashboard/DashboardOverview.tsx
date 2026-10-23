@@ -215,7 +215,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 Supabase Credentials Not Yet Detected
               </h3>
               <p className="text-xs text-[#666666] mt-0.5 leading-relaxed max-w-2xl">
-                Provide <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono text-[11px]">VITE_SUPABASE_URL</code> and <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono text-[11px]">VITE_SUPABASE_PUBLISHABLE_KEY</code> in environment variables or Settings to sync directly with your database.
+                Provide <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono text-[11px]">VITE_SUPABASE_URL</code> and <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono text-[11px]">VITE_SUPABASE_ANON_KEY</code> in your environment variables to sync directly with your database.
               </p>
             </div>
           </div>

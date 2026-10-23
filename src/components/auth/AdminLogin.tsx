@@ -49,7 +49,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
 
     if (!isSupabaseConfigured) {
       setErrorMessage(
-        'Supabase is not yet configured. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY below, or use the offline preview mode.'
+        'Supabase is not yet configured. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your hosting environment variables, or use the offline preview mode.'
       );
       setShowConfigPanel(true);
       return;
@@ -280,7 +280,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           {!isSupabaseConfigured ? (
             <div className="mt-2 text-[11px] text-[#666666] leading-relaxed">
               <p>
-                Provide <code className="bg-gray-100 px-1 py-0.5 rounded text-[#171717]">VITE_SUPABASE_URL</code> and <code className="bg-gray-100 px-1 py-0.5 rounded text-[#171717]">VITE_SUPABASE_PUBLISHABLE_KEY</code> in environment variables or enter them below to connect directly:
+                Provide <code className="bg-gray-100 px-1 py-0.5 rounded text-[#171717]">VITE_SUPABASE_URL</code> and <code className="bg-gray-100 px-1 py-0.5 rounded text-[#171717]">VITE_SUPABASE_ANON_KEY</code> in environment variables or enter them below to connect directly:
               </p>
 
               <button
